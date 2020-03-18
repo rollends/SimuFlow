@@ -3,14 +3,10 @@ package ca.rollends.simuflow.blocks.python;
 import java.util.List;
 
 public class Scope extends AbstractSyntaxTree {
-    protected final List<AbstractSyntaxTree> operations;
+    protected final Sequence operations;
 
     public Scope(Sequence seq) {
-        operations = seq.operations;
-    }
-
-    public Scope(List<AbstractSyntaxTree> ops) {
-        operations = ops;
+        operations = seq;
     }
 
     @Override
@@ -18,5 +14,5 @@ public class Scope extends AbstractSyntaxTree {
         visitor.visitScope(this);
     }
 
-    public List<AbstractSyntaxTree> getChildren() { return operations; }
+    public Sequence getImplementation() { return operations; }
 }

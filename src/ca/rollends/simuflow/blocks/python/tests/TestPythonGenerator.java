@@ -44,7 +44,7 @@ public class TestPythonGenerator {
         Symbol t2 = new Symbol("t2");
         Statement stmt = new Statement(t1, new Expression("2" ));
         Statement stmt2 = new Statement(t2, new Expression("10*t1"));
-        Scope scope = new Scope(List.of(stmt, stmt2));
+        Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         scope.accept(gen);
 
@@ -61,7 +61,7 @@ public class TestPythonGenerator {
         Symbol t2 = new Symbol("t2");
         Statement stmt = new Statement(t1, new Expression("2" ));
         Statement stmt2 = new Statement(t2, new Expression("10*t1"));
-        Scope scope = new Scope(List.of(stmt, stmt2));
+        Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         Symbol name = new Symbol("fx");
         Function fx = new Function(name, List.of(), List.of(), scope);
@@ -81,14 +81,14 @@ public class TestPythonGenerator {
         Symbol t2 = new Symbol("t2");
         Statement stmt = new Statement(t1, new Expression("2" ));
         Statement stmt2 = new Statement(t2, new Expression("10*t1"));
-        Scope scope = new Scope(List.of(stmt, stmt2));
+        Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         Symbol name = new Symbol("fx");
         Function fx = new Function(name, List.of(), List.of(), scope);
 
         Symbol t3 = new Symbol("t3");
         Statement stmt3 = new Statement(t3, new Expression("25" ));
-        Scope scope2 = new Scope(List.of(fx, stmt3));
+        Scope scope2 = new Scope(new Sequence(List.of(fx, stmt3)));
 
         Symbol name2 = new Symbol("fx2");
         Function fx2 = new Function(name2, List.of(), List.of(), scope2);

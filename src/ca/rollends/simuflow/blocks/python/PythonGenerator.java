@@ -53,12 +53,9 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
 
     @Override
     public void visitSequence(Sequence scp) {
-        String noTabInFormat = "%s";
-
         List<String> codeLines = new LinkedList<>();
 
-        List<AbstractSyntaxTree> children = scp.getChildren();
-        for(AbstractSyntaxTree child : children) {
+        for(AbstractSyntaxTree child : scp.getChildren()) {
             child.accept(this);
 
             // Inspect top of stack. Two cases.
@@ -66,14 +63,12 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
             if(returnValue instanceof String) {
 
                 // Child essentially just a statement.
-                codeLines.add(String.format(noTabInFormat, returnValue));
+                codeLines.add((String) returnValue);
 
             } else if(returnValue instanceof List) {
 
                 // Child returned a list of code lines. Tab them in
-                Stream<String> stream = ((List<String>)returnValue).stream();
-                stream = stream.map( (s) -> String.format(noTabInFormat, s) );
-                codeLines.addAll(stream.collect(Collectors.toUnmodifiableList()));
+                codeLines.addAll((List<String>) returnValue);
 
             }
         }
@@ -106,30 +101,17 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
     public void visitScope(Scope scp) {
         String tabInFormat = "    %s";
 
-        List<String> codeLines = new LinkedList<>();
+        Sequence implementation = scp.getImplementation();
+        implementation.accept(this);
 
-        List<AbstractSyntaxTree> children = scp.getChildren();
-        for(AbstractSyntaxTree child : children) {
-            child.accept(this);
+        // Will always return a List of code strings
+        List<String> codeListing = (List<String>) codeStack.poll();
 
-            // Inspect top of stack. Two cases.
-            Object returnValue = codeStack.poll();
-            if(returnValue instanceof String) {
+        // Child returned a list of code lines. Tab them in
+        Stream<String> stream = codeListing.stream().map( (s) -> String.format(tabInFormat, s));
 
-                // Child essentially just a statement.
-                codeLines.add(String.format(tabInFormat, returnValue));
-
-            } else if(returnValue instanceof List) {
-
-                // Child returned a list of code lines. Tab them in
-                Stream<String> stream = ((List<String>)returnValue).stream();
-                stream = stream.map( (s) -> String.format(tabInFormat, s) );
-                codeLines.addAll(stream.collect(Collectors.toUnmodifiableList()));
-
-            }
-        }
-
-        codeStack.push(codeLines);
+        // Push lines of code
+        codeStack.push(stream.collect(Collectors.toUnmodifiableList()));
     }
 
     @Override
