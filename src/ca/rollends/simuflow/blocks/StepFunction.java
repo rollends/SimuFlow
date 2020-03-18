@@ -1,9 +1,6 @@
 package ca.rollends.simuflow.blocks;
 
-import ca.rollends.simuflow.blocks.python.Expression;
-import ca.rollends.simuflow.blocks.python.Sequence;
-import ca.rollends.simuflow.blocks.python.Statement;
-import ca.rollends.simuflow.blocks.python.Symbol;
+import ca.rollends.simuflow.blocks.python.*;
 import ca.rollends.simuflow.blocks.traits.Dimension;
 
 import java.util.List;
@@ -31,7 +28,7 @@ public class StepFunction extends SourceBlock {
         Symbol t = time.makeSymbol();
 
         // Generate output value.
-        Statement setOutput = new Statement(y, new Expression(String.format("%g if %s > %g else 0", amplitude.doubleValue(), t, startTime)));
+        Statement setOutput = new AssignStatement(y, new Expression(String.format("%g if %s > %g else 0", amplitude.doubleValue(), t, startTime)));
 
         return new Sequence(List.of(setOutput));
     }

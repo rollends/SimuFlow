@@ -44,7 +44,7 @@ public class SimuflowProgramBuilder  {
         List<AbstractSyntaxTree> assignStateVars = new LinkedList<>();
         for(int i = 0; i < states.size(); i++) {
             Expression index = new Expression(String.format("%s[%d]", x, i));
-            assignStateVars.add(new Statement(states.get(i), index));
+            assignStateVars.add(new AssignStatement(states.get(i), index));
         }
         Sequence assignStates = new Sequence(assignStateVars);
 
@@ -63,7 +63,7 @@ public class SimuflowProgramBuilder  {
         List<AbstractSyntaxTree> assignDifferentials = new LinkedList<>();
 
         String cols = differentials.stream().map((l) -> "[" + l.toString() + "]").reduce((a,b) -> a + "," + b).get();
-        assignDifferentials.add(new Statement(dx, new Expression(String.format("bmat([%s])", cols))));
+        assignDifferentials.add(new AssignStatement(dx, new Expression(String.format("bmat([%s])", cols))));
         Sequence assignDX = new Sequence(assignDifferentials);
 
         // Final Sequence of Code

@@ -1,9 +1,6 @@
 package ca.rollends.simuflow.blocks;
 
-import ca.rollends.simuflow.blocks.python.Expression;
-import ca.rollends.simuflow.blocks.python.Sequence;
-import ca.rollends.simuflow.blocks.python.Statement;
-import ca.rollends.simuflow.blocks.python.Symbol;
+import ca.rollends.simuflow.blocks.python.*;
 import ca.rollends.simuflow.blocks.traits.Dimension;
 
 import java.util.List;
@@ -50,16 +47,16 @@ public class TransferFunction extends StatefulBlock {
 
         // Create Output Matrix C
         Stream<String> numCoeffs = numerator.stream().map((d) -> d.toString());
-        Statement assignC = new Statement(C, new Expression(String.format("mat('%s')", numCoeffs.reduce((a,b) -> b + " " + a).get())));
+        Statement assignC = new AssignStatement(C, new Expression(String.format("mat('%s')", numCoeffs.reduce((a, b) -> b + " " + a).get())));
 
         // Create State Transition Matrix A
         Stream<String> denCoeffs = denominator.stream().skip(1).map((d) -> -d).map((d) -> d.toString());
         Symbol t1 = new Symbol();
-        Statement assignT1 = new Statement(t1, new Expression(String.format("hstack((zeros((%1$d,1)), eye(%1$d)))", N - 1)));
-        Statement assignA = new Statement(A, new Expression(String.format("vstack((%1$s, mat('%2$s'))", t1, denCoeffs.reduce((s, d) -> d + " " + s).get())));
+        Statement assignT1 = new AssignStatement(t1, new Expression(String.format("hstack((zeros((%1$d,1)), eye(%1$d)))", N - 1)));
+        Statement assignA = new AssignStatement(A, new Expression(String.format("vstack((%1$s, mat('%2$s'))", t1, denCoeffs.reduce((s, d) -> d + " " + s).get())));
 
         // Create Control Matrix B
-        Statement assignB = new Statement(B, new Expression(String.format("hstack((zeros((%d,1)),1.0))", N - 1)));
+        Statement assignB = new AssignStatement(B, new Expression(String.format("hstack((zeros((%d,1)),1.0))", N - 1)));
 
         return new Sequence(List.of(assignC, assignT1, assignA, assignB));
     }
@@ -71,7 +68,7 @@ public class TransferFunction extends StatefulBlock {
         Symbol x = stateVariable;
         Symbol dx = dStateVariable;
 
-        Statement setDX = new Statement(dx, new Expression(String.format("%s * %s + %s * %s", A, x, B, u)));
+        Statement setDX = new AssignStatement(dx, new Expression(String.format("%s * %s + %s * %s", A, x, B, u)));
 
         return new Sequence(List.of(setDX));
     }
@@ -81,7 +78,7 @@ public class TransferFunction extends StatefulBlock {
         Symbol y = outputs.get(0).makeSymbol();
         Symbol x = stateVariable;
 
-        Statement setY = new Statement(y, new Expression(String.format("%s * %s", C, x)));
+        Statement setY = new AssignStatement(y, new Expression(String.format("%s * %s", C, x)));
 
         return new Sequence(List.of(setY));
     }

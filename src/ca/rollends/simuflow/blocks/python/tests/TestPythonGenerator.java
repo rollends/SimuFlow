@@ -27,7 +27,7 @@ public class TestPythonGenerator {
 
         Symbol rs = new Symbol("temp");
         Expression ex = new Expression("a*b + c*d**2" );
-        Statement stmt = new Statement(rs, ex);
+        Statement stmt = new AssignStatement(rs, ex);
 
         stmt.accept(gen);
 
@@ -42,8 +42,8 @@ public class TestPythonGenerator {
 
         Symbol t1 = new Symbol("t1");
         Symbol t2 = new Symbol("t2");
-        Statement stmt = new Statement(t1, new Expression("2" ));
-        Statement stmt2 = new Statement(t2, new Expression("10*t1"));
+        Statement stmt = new AssignStatement(t1, new Expression("2" ));
+        Statement stmt2 = new AssignStatement(t2, new Expression("10*t1"));
         Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         scope.accept(gen);
@@ -59,8 +59,8 @@ public class TestPythonGenerator {
 
         Symbol t1 = new Symbol("t1");
         Symbol t2 = new Symbol("t2");
-        Statement stmt = new Statement(t1, new Expression("2" ));
-        Statement stmt2 = new Statement(t2, new Expression("10*t1"));
+        Statement stmt = new AssignStatement(t1, new Expression("2" ));
+        Statement stmt2 = new AssignStatement(t2, new Expression("10*t1"));
         Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         Symbol name = new Symbol("fx");
@@ -79,15 +79,15 @@ public class TestPythonGenerator {
 
         Symbol t1 = new Symbol("t1");
         Symbol t2 = new Symbol("t2");
-        Statement stmt = new Statement(t1, new Expression("2" ));
-        Statement stmt2 = new Statement(t2, new Expression("10*t1"));
+        Statement stmt = new AssignStatement(t1, new Expression("2" ));
+        Statement stmt2 = new AssignStatement(t2, new Expression("10*t1"));
         Scope scope = new Scope(new Sequence(List.of(stmt, stmt2)));
 
         Symbol name = new Symbol("fx");
         Function fx = new Function(name, List.of(), List.of(), scope);
 
         Symbol t3 = new Symbol("t3");
-        Statement stmt3 = new Statement(t3, new Expression("25" ));
+        Statement stmt3 = new AssignStatement(t3, new Expression("25" ));
         Scope scope2 = new Scope(new Sequence(List.of(fx, stmt3)));
 
         Symbol name2 = new Symbol("fx2");

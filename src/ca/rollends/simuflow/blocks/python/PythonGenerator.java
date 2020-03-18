@@ -28,27 +28,7 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
     @Override
     public void visitProgram(Program prog) {
         // Generate code for entire program.
-        prog.getChildren().stream().forEachOrdered((child) -> child.accept(this));
-
-        // Collapse resulting code into a single piece of code
-        List<String> result = (List<String>) codeStack.stream().map( (l) -> {
-            // Convert all data types to list!
-            if(l instanceof String) {
-                return List.of(l);
-            } else {
-                return l;
-            }
-        }).reduce( (a, b) -> {
-            List<String> al = (List<String>) a;
-            List<String> bl = (List<String>) b;
-            return Stream.concat(bl.stream(), al.stream()).collect(Collectors.toUnmodifiableList());
-        }).get();
-
-        // Clear stack
-        codeStack.clear();
-
-        // Push code onto stack.
-        codeStack.push(result);
+        prog.getImplementation().accept(this);
     }
 
     @Override
@@ -78,6 +58,27 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
 
     @Override
     public void visitStatement(Statement st) {
+        // Default. Do nothing.
+    }
+
+    @Override
+    public void visitReturnStatement(ReturnStatement st) {
+        Expression rhs = st.getRHS();
+
+        // Traverse expression.
+        rhs.accept(this);
+
+        // Top of stack has (1) symbol and (2) rhs code
+        StringBuilder strStmt = new StringBuilder();
+        strStmt.append("return ");
+        strStmt.append((String)codeStack.poll());
+        strStmt.append("\n");
+
+        codeStack.push(strStmt.toString());
+    }
+
+    @Override
+    public void visitAssignStatement(AssignStatement st) {
         Symbol lhs = st.getLHS();
         Expression rhs = st.getRHS();
 

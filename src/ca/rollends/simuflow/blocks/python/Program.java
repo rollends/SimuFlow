@@ -5,10 +5,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Program {
-    private final List<AbstractSyntaxTree> children;
+    private final Sequence code;
 
-    private Program(List<AbstractSyntaxTree> childs) {
-        children = childs;
+    private Program(Sequence childs) {
+        code = childs;
     }
 
     public void accept(IAbstractSyntaxTreeVisitor visitor) {
@@ -16,12 +16,12 @@ public class Program {
     }
 
     public static Program newProgram() {
-        return new Program(List.of());
+        return new Program(Sequence.empty());
     }
 
     public static Program newProgram(Program p, AbstractSyntaxTree tree) {
-        return new Program(Stream.concat(p.children.stream(), Stream.of(tree)).collect(Collectors.toUnmodifiableList()));
+        return new Program(Sequence.concat(p.code, Sequence.from(tree)));
     }
 
-    public List<AbstractSyntaxTree> getChildren() { return children; }
+    public Sequence getImplementation() { return code; }
 }
