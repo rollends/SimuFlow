@@ -78,6 +78,22 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
     }
 
     @Override
+    public void visitImportStatement(ImportStatement st) {
+        Expression rhs = st.getRHS();
+
+        // Traverse expression.
+        rhs.accept(this);
+
+        // Top of stack has (1) symbol and (2) rhs code
+        StringBuilder strStmt = new StringBuilder();
+        strStmt.append("import ");
+        strStmt.append((String)codeStack.poll());
+        strStmt.append("\n");
+
+        codeStack.push(strStmt.toString());
+    }
+
+    @Override
     public void visitAssignStatement(AssignStatement st) {
         Symbol lhs = st.getLHS();
         Expression rhs = st.getRHS();

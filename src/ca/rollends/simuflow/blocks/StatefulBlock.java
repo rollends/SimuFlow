@@ -30,6 +30,10 @@ public abstract class StatefulBlock extends BasicBlock {
         return dStateVariable;
     }
 
+    public Symbol getInitialStateVariable() {
+        return initialStateVariable;
+    }
+
     @Override
     public void accept(IBlockVisitor visitor) {
         visitor.visitStatefulBlock(this);

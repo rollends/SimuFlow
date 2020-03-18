@@ -10,6 +10,7 @@ import java.util.Set;
 
 public class CollectBlockStates implements IBlockVisitor {
     private Set<BasicBlock> visitedSet;
+    private List<Symbol> initialStates;
     private List<Symbol> states;
     private List<Symbol> differentials;
 
@@ -17,6 +18,7 @@ public class CollectBlockStates implements IBlockVisitor {
         this.visitedSet = new HashSet<>();
         this.states = new LinkedList<>();
         this.differentials = new LinkedList<>();
+        this.initialStates = new LinkedList<>();
     }
 
     public List<Symbol> getDifferentials() {
@@ -25,6 +27,10 @@ public class CollectBlockStates implements IBlockVisitor {
 
     public List<Symbol> getStates() {
         return states;
+    }
+
+    public List<Symbol> getInitialStates() {
+        return initialStates;
     }
 
     @Override
@@ -70,6 +76,7 @@ public class CollectBlockStates implements IBlockVisitor {
         BasicSignal signal = s.getInputs().get(0);
 
         // Add states.
+        initialStates.add(s.getInitialStateVariable());
         states.add(s.getStateVariable());
         differentials.add(s.getDifferentialVariable());
 

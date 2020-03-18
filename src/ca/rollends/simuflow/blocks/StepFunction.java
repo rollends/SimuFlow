@@ -28,7 +28,7 @@ public class StepFunction extends SourceBlock {
         Symbol t = time.makeSymbol();
 
         // Generate output value.
-        Statement setOutput = new AssignStatement(y, new Expression(String.format("%g if %s > %g else 0", amplitude.doubleValue(), t, startTime)));
+        Statement setOutput = new AssignStatement(y, new Expression(String.format("%g*np.ones(1) if %s > %g else np.zeros(1)", amplitude.doubleValue(), t, startTime)));
 
         return new Sequence(List.of(setOutput));
     }

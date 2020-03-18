@@ -3,6 +3,7 @@ package ca.rollends.simuflow.blocks.python;
 public interface IAbstractSyntaxTreeVisitor {
     void visitAssignStatement(AssignStatement st);
     void visitReturnStatement(ReturnStatement st);
+    void visitImportStatement(ImportStatement st);
     void visitStatement(Statement st);
     void visitExpression(Expression exp);
     void visitScope(Scope scp);
