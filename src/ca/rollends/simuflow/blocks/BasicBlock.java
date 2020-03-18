@@ -9,7 +9,7 @@ import java.util.List;
 
 public abstract class BasicBlock {
 
-    protected final static BasicSignal time = new BasicSignal(Dimension.Scalar, BasicSignal.Type.REAL, "time");
+    public final static BasicSignal time = new BasicSignal(Dimension.Scalar, BasicSignal.Type.REAL, "time");
 
     protected final List<BasicSignal> inputs;
     protected final List<BasicSignal> outputs;

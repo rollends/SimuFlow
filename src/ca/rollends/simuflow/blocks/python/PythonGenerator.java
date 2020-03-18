@@ -166,7 +166,13 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
         String declaration = (String) codeStack.poll();
 
         // Push code listing for function
-        codeStack.push(Stream.concat(Stream.of(declaration), impl.stream()).collect(Collectors.toUnmodifiableList()));
+        if(fx.getOutputs().size() > 0) {
+            String returnValue = "    return " + fx.getOutputs().get(0).name + "\n"; // TODO: Support statements like return.
+            codeStack.push(Stream.concat(Stream.concat(Stream.of(declaration), impl.stream()), Stream.of(returnValue)).collect(Collectors.toUnmodifiableList()));
+        } else {
+            codeStack.push(Stream.concat(Stream.of(declaration), impl.stream()).collect(Collectors.toUnmodifiableList()));
+        }
+
     }
 
     @Override

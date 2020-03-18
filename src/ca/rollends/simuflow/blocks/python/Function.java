@@ -24,4 +24,8 @@ public class Function extends AbstractSyntaxTree {
     public Symbol getName() { return name; }
     public List<Symbol> getParameters() { return parameters; }
     public Scope getImplementation() { return scope; }
+
+    public List<Symbol> getOutputs() {
+        return outputs;
+    }
 }

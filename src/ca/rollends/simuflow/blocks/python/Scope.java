@@ -5,6 +5,10 @@ import java.util.List;
 public class Scope extends AbstractSyntaxTree {
     protected final List<AbstractSyntaxTree> operations;
 
+    public Scope(Sequence seq) {
+        operations = seq.operations;
+    }
+
     public Scope(List<AbstractSyntaxTree> ops) {
         operations = ops;
     }

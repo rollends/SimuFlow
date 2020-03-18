@@ -22,6 +22,14 @@ public abstract class StatefulBlock extends BasicBlock {
         dStateVariable = new Symbol(String.format("dx_%d", hashCode()));
     }
 
+    public Symbol getStateVariable() {
+        return stateVariable;
+    }
+
+    public Symbol getDifferentialVariable() {
+        return dStateVariable;
+    }
+
     @Override
     public void accept(IBlockVisitor visitor) {
         visitor.visitStatefulBlock(this);
