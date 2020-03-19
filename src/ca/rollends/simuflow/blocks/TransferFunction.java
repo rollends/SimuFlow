@@ -3,7 +3,8 @@ package ca.rollends.simuflow.blocks;
 import ca.rollends.simuflow.blocks.python.*;
 import ca.rollends.simuflow.blocks.traits.Dimension;
 
-import java.util.List;
+import javax.swing.plaf.nimbus.State;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,6 +16,11 @@ public class TransferFunction extends StatefulBlock {
     private final Symbol A = new Symbol();
     private final Symbol B = new Symbol();
     private final Symbol C = new Symbol();
+    private final Symbol D = new Symbol();
+
+    private final TransferFunctionOperationBuilder operationBuilder = new TransferFunctionOperationBuilder();
+
+    private final boolean isStrictlyProper;
 
     public TransferFunction(List<Double> numerator, List<Double> denominator) {
         super(List.of(new BasicSignal(Dimension.Scalar, BasicSignal.Type.REAL)), List.of(new BasicSignal(Dimension.Scalar, BasicSignal.Type.REAL)));
@@ -22,16 +28,21 @@ public class TransferFunction extends StatefulBlock {
         // Numerator has atleast 0th order terms
         assert numerator.size() >= 1;
 
-        // Denominator has greater order (Transfer Function is strictly proper => realizable)
-        // TODO: Support Proper Transfer Functions
-        assert numerator.size() < denominator.size();
+        // Denominator has greater order (Transfer Function is proper, real rational => realizable)
+        assert numerator.size() <= denominator.size();
 
         // Denominator has to non-trivial leading coefficient
         assert denominator.get(0) > 0;
 
         // Create Padding of zeros for numerator
-        int padding = (denominator.size()-1) - numerator.size();
+        int padding = (denominator.size()) - numerator.size();
         Stream<Double> zeros = Stream.generate(() -> 0.0).limit(padding);
+
+        if (padding > 0) {
+            isStrictlyProper = true;
+        } else {
+            isStrictlyProper = false;
+        }
 
         // Pad numerator and scale all coefficients by leading denominator coefficient.
         Stream<Double> numeratorStream = Stream.concat(zeros, numerator.stream()).map( (d) -> d / denominator.get(0) );
@@ -41,52 +52,195 @@ public class TransferFunction extends StatefulBlock {
         this.denominator = denominatorStream.collect(Collectors.toUnmodifiableList());
     }
 
-    @Override
-    public Sequence makePreparationStep() {
-        int N = denominator.size() - 1;
+    public class TransferFunctionOperationBuilder extends AbstractPythonOperationBuilder {
+        Symbol numpyZero = new Symbol("np.zeros");
+        Symbol numpyMatrix = new Symbol("np.mat");
+        Symbol numpyHstack = new Symbol("np.hstack");
+        Symbol numpyVstack = new Symbol("np.vstack");
+        Symbol numpyEye = new Symbol("np.eye");
+        Symbol numpyReshape = new Symbol("np.reshape");
 
-        // Create Initial Condition
-        Statement assignX0 = new AssignStatement(initialStateVariable, new Expression(String.format("np.zeros(%d)", N)));
+        public void inputOutputConstraint(Map<Symbol, Expression> Matrix, Map<Symbol, Expression> OutputVector) {
+            Symbol u = inputs.get(0).makeSymbol();
+            Symbol y = outputs.get(0).makeSymbol();
+            Symbol x = stateVariable;
 
-        // Create Output Matrix C
-        Stream<String> numCoeffs = numerator.stream().map((d) -> d.toString());
-        Statement assignC = new AssignStatement(C, new Expression(String.format("np.mat('%s')", numCoeffs.reduce((a, b) -> b + " " + a).get())));
+            Matrix.put(y, LiteralInteger(1));
+            Matrix.put(u, Negative(Variable(D)));
+            OutputVector.put(y, Multiply(Variable(C), Variable(x)));
+        }
 
-        // Create State Transition Matrix A
-        Stream<String> denCoeffs = denominator.stream().skip(1).map((d) -> -d).map((d) -> d.toString());
-        Symbol t1 = new Symbol();
-        Statement assignT1 = new AssignStatement(t1, new Expression(String.format("np.hstack((np.zeros((%1$d,1)), np.eye(%1$d)))", N - 1)));
-        Statement assignA = new AssignStatement(A, new Expression(String.format("np.vstack((%1$s, np.mat('%2$s')))", t1, denCoeffs.reduce((s, d) -> d + " " + s).get())));
+        public Sequence outputCode() {
+            Symbol y = outputs.get(0).makeSymbol();
+            Symbol x = stateVariable;
 
-        // Create Control Matrix B
-        Statement assignB = new AssignStatement(B, new Expression(String.format("np.vstack((np.zeros((%d,1)),1.0))", N - 1)));
+            Statement setY = new AssignStatement(y,
+                Multiply(
+                    Variable(C),
+                    Variable(x)
+                )
+            );
 
-        return new Sequence(List.of(assignX0, assignC, assignT1, assignA, assignB));
+            return Sequence.from(setY);
+        }
+
+        public Sequence integrationCode() {
+            int N = denominator.size() - 1;
+
+            // Should just be one input and one output by construction (invariant of Class).
+            Symbol u = inputs.get(0).makeSymbol();
+            Symbol x = stateVariable;
+            Symbol dx = dStateVariable;
+
+            Statement setDX = new AssignStatement(dx,
+                Add(
+                    Multiply(
+                        Variable(A),
+                        Call(
+                            numpyReshape,
+                            List.of(
+                                Variable(x),
+                                Tuple(LiteralInteger(N), LiteralInteger(1))
+                            )
+                        )
+                    ),
+                    Multiply(
+                        Variable(B),
+                        Call(
+                            numpyReshape,
+                            List.of(
+                                Variable(u),
+                                Tuple(LiteralInteger(1), LiteralInteger(1))
+                            )
+                        )
+                    )
+                )
+            );
+
+            return Sequence.from(setDX);
+        }
+
+        public Sequence stepSetupCode(Integer stateIndex) {
+            // Add Operation to get State.
+            Sequence extractState = Sequence.empty();
+            for (int i = 0; i < getStateSize(); i++) {
+                Statement setOneState = new AssignStatement(new Symbol(String.format("y[%d]", i)), new PlainExpression(String.format("x[%d]", stateIndex + i)));
+                extractState = Sequence.concat(extractState, Sequence.from(setOneState));
+            }
+            Function getStateFor = new Function(getPyGetStateForBlock(), List.of(new Symbol("x"), new Symbol("y")), List.of(), new Scope(extractState));
+
+            // Add Operation to set Differential State
+            Sequence setStates = Sequence.empty();
+            for (int i = 0; i < getStateSize(); i++) {
+                Statement setOneState = new AssignStatement(new Symbol(String.format("x[%d]", stateIndex + i)), new PlainExpression(String.format("y[%d]", i)));
+                setStates = Sequence.concat(setStates, Sequence.from(setOneState));
+            }
+            Function setStateFor = new Function(getPySetStateForBlock(), List.of(new Symbol("x"), new Symbol("y")), List.of(), new Scope(setStates));
+
+            // Add Operation to Read state for this block from entire state vector.
+            Statement declareStateVar = new AssignStatement(getStateVariable(), Call(numpyZero, List.of(Tuple(LiteralInteger(getStateSize()), LiteralInteger(1)))));
+            Statement writeToState = new PlainStatement(String.format("%s(x,%s)", getPyGetStateForBlock(), getStateVariable()));
+
+            return Sequence.from(getStateFor, setStateFor, declareStateVar, writeToState);
+        }
+
+        public Sequence preparationCode() {
+            int N = denominator.size() - 1;
+
+            // Create Initial Condition
+            Statement assignX0 = new AssignStatement(initialStateVariable, Call(numpyZero, List.of(LiteralInteger(N))));
+
+            // Create Output Matrix C
+            Stream<String> numCoeffs = numerator.stream().skip(1).map((d) -> d.toString());
+            String numCoeffsArray = numCoeffs.reduce((a, b) -> b + " " + a).get();
+            Statement assignC = new AssignStatement(C, Call(numpyMatrix, List.of(LiteralString(numCoeffsArray))));
+
+            // Create Feedforward Matrix D
+            Statement assignD = new AssignStatement(D,
+                Call(
+                    numpyMatrix,
+                    List.of(
+                        LiteralString(numerator.get(0).toString())
+                    )
+                )
+            );
+
+            // Create State Transition Matrix A
+            Stream<String> denCoeffs = denominator.stream().skip(1).map((d) -> -d).map((d) -> d.toString());
+            String denCoeffsArray = denCoeffs.reduce((s, d) -> d + " " + s).get();
+            Symbol t1 = new Symbol();
+            Statement assignT1 = new AssignStatement(t1,
+                Call(
+                    numpyHstack,
+                    List.of(
+                        Tuple(
+                            Call(numpyZero, List.of(Tuple(LiteralInteger(N - 1),LiteralInteger(1)))),
+                            Call(numpyEye, List.of(LiteralInteger(N - 1)))
+                        )
+                    )
+                )
+            );
+            Statement assignA = new AssignStatement(A,
+                Call(
+                    numpyVstack,
+                    List.of(
+                        Tuple(
+                            Variable(t1),
+                            Call(
+                                numpyMatrix,
+                                List.of(LiteralString(denCoeffsArray))
+                            )
+                        )
+                    )
+                )
+            );
+
+            // Create Control Matrix B
+            Statement assignB = new AssignStatement(B,
+                Call(
+                    numpyVstack,
+                    List.of(
+                        Tuple(
+                            Call(
+                                numpyZero, List.of(Tuple(LiteralInteger(N-1), LiteralInteger(1)))
+                            ),
+                            LiteralReal(1.0)
+                        )
+                    )
+                )
+            );
+
+            return Sequence.from(assignX0, assignD, assignC, assignT1, assignA, assignB);
+        }
     }
 
     @Override
-    public Sequence makeIntegrationStep() {
-        int N = denominator.size() - 1;
-
-        // Should just be one input and one output by construction (invariant of Class).
-        Symbol u = inputs.get(0).makeSymbol();
-        Symbol x = stateVariable;
-        Symbol dx = dStateVariable;
-
-        Statement setDX = new AssignStatement(dx, new Expression(String.format("%s * ( %s.reshape(%5$d, 1) ) + %s * ( %s.reshape(1, 1) )", A, x, B, u, N)));
-
-        return new Sequence(List.of(setDX));
+    public AbstractPythonOperationBuilder getBuilder() {
+        return operationBuilder;
     }
 
     @Override
-    public Sequence makeOutputStep() {
-        int N = denominator.size() - 1;
+    public Sequence initializationCode() {
+        return operationBuilder.preparationCode();
+    }
 
-        Symbol y = outputs.get(0).makeSymbol();
-        Symbol x = stateVariable;
+    @Override
+    public Sequence integrationCode() {
+        return operationBuilder.integrationCode();
+    }
 
-        Statement setY = new AssignStatement(y, new Expression(String.format("np.squeeze(np.asarray(%s * ( %s.reshape(%3$d, 1) )), axis=0)", C, x, N)));
+    @Override
+    public Sequence outputCode() {
+        return operationBuilder.outputCode();
+    }
 
-        return new Sequence(List.of(setY));
+    @Override
+    public boolean hasFeedforward() {
+        return !isStrictlyProper;
+    }
+
+    @Override
+    public int getStateSize() {
+        return denominator.size() - 1;
     }
 }

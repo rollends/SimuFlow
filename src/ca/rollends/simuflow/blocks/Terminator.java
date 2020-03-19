@@ -19,12 +19,12 @@ public class Terminator extends SinkBlock {
     }
 
     @Override
-    public Sequence makePreparationStep() {
+    public Sequence initializationCode() {
         return new Sequence(List.of());
     }
 
     @Override
-    public Sequence makeOutputStep() {
+    public Sequence outputCode() {
         return new Sequence(List.of());
     }
 }

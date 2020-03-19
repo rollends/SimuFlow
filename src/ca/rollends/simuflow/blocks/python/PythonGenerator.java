@@ -62,6 +62,11 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
     }
 
     @Override
+    public void visitPlainStatement(PlainStatement st) {
+        codeStack.push(st.toString() + "\n");
+    }
+
+    @Override
     public void visitReturnStatement(ReturnStatement st) {
         Expression rhs = st.getRHS();
 
@@ -122,7 +127,7 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
         implementation.accept(this);
 
         // Will always return a List of code strings
-        List<String> codeListing = (List<String>) codeStack.poll();
+        List<String> codeListing = (List<String>) (codeStack.poll());
 
         // Child returned a list of code lines. Tab them in
         Stream<String> stream = codeListing.stream().map( (s) -> String.format(tabInFormat, s));
@@ -161,22 +166,90 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
         fx.getImplementation().accept(this);
 
         // Pop the resulting scope implementation and function declaration.
-        List<String> impl = (List<String>) codeStack.poll();
+        List<String> impl = (List<String>) (codeStack.poll());
         String declaration = (String) codeStack.poll();
 
         // Push code listing for function
-        if(fx.getOutputs().size() > 0) {
-            String returnValue = "    return " + fx.getOutputs().get(0).name + "\n"; // TODO: Support statements like return.
-            codeStack.push(Stream.concat(Stream.concat(Stream.of(declaration), impl.stream()), Stream.of(returnValue)).collect(Collectors.toUnmodifiableList()));
-        } else {
-            codeStack.push(Stream.concat(Stream.of(declaration), impl.stream()).collect(Collectors.toUnmodifiableList()));
-        }
-
+        codeStack.push(Stream.concat(Stream.of(declaration), impl.stream()).collect(Collectors.toUnmodifiableList()));
     }
 
     @Override
-    public void visitExpression(Expression exp) {
-        codeStack.push(exp.getExpressionCode());
+    public void visitPlainExpression(PlainExpression exp) {
+        codeStack.push(exp.getCode());
+    }
+
+    @Override
+    public void visitBinaryOperatorExpression(BinaryOperatorExpression exp) {
+        StringBuilder str = new StringBuilder();
+
+        exp.getRightOperand().accept(this);
+        codeStack.push(exp.getOperator());
+        exp.getLeftOperand().accept(this);
+
+        str.append('(');
+        str.append(codeStack.poll());
+        str.append(codeStack.poll());
+        str.append(codeStack.poll());
+        str.append(')');
+
+        codeStack.push(str.toString());
+    }
+
+    @Override
+    public void visitUnaryOperatorExpression(UnaryOperatorExpression exp) {
+        StringBuilder str = new StringBuilder();
+
+        exp.getOperand().accept(this);
+        codeStack.push(exp.getOperator());
+
+        str.append('(');
+        str.append(codeStack.poll());
+        str.append(codeStack.poll());
+        str.append(')');
+
+        codeStack.push(str.toString());
+    }
+
+    @Override
+    public void visitFunctionCallExpression(FunctionCallExpression exp) {
+        StringBuilder str = new StringBuilder();
+
+        str.append(exp.getFunctionName());
+        str.append('(');
+
+        List<Expression> children = exp.getArguments();
+
+        for(int i = 0; i < children.size(); i++) {
+            children.get(i).accept(this);
+            if (i > 0) {
+                str.append(',');
+            }
+            str.append(codeStack.poll());
+        }
+
+        str.append(')');
+
+        codeStack.push(str.toString());
+    }
+
+    @Override
+    public void visitTupleExpression(TupleExpression exp) {
+        StringBuilder str = new StringBuilder();
+        str.append('(');
+
+        List<Expression> children = exp.getElements();
+
+        for(int i = 0; i < children.size(); i++) {
+            children.get(i).accept(this);
+            if (i > 0) {
+                str.append(',');
+            }
+            str.append(codeStack.poll());
+        }
+
+        str.append(')');
+
+        codeStack.push(str.toString());
     }
 
     @Override

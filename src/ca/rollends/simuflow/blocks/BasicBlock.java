@@ -27,6 +27,6 @@ public abstract class BasicBlock {
 
     public abstract void accept(IBlockVisitor visitor);
 
-    public abstract Sequence makePreparationStep();
-    public abstract Sequence makeOutputStep();
+    public abstract Sequence initializationCode();
+    public abstract Sequence outputCode();
 }

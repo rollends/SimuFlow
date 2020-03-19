@@ -4,8 +4,13 @@ public interface IAbstractSyntaxTreeVisitor {
     void visitAssignStatement(AssignStatement st);
     void visitReturnStatement(ReturnStatement st);
     void visitImportStatement(ImportStatement st);
+    void visitPlainStatement(PlainStatement st);
     void visitStatement(Statement st);
-    void visitExpression(Expression exp);
+    void visitPlainExpression(PlainExpression exp);
+    void visitBinaryOperatorExpression(BinaryOperatorExpression exp);
+    void visitUnaryOperatorExpression(UnaryOperatorExpression exp);
+    void visitFunctionCallExpression(FunctionCallExpression exp);
+    void visitTupleExpression(TupleExpression exp);
     void visitScope(Scope scp);
     void visitFunction(Function fx);
     void visitSymbol(Symbol sym);

@@ -1,6 +1,7 @@
 package ca.rollends.simuflow.blocks;
 
 import ca.rollends.simuflow.blocks.codegen.IBlockVisitor;
+import ca.rollends.simuflow.blocks.python.AbstractPythonOperationBuilder;
 import ca.rollends.simuflow.blocks.python.Sequence;
 import ca.rollends.simuflow.blocks.python.Statement;
 import ca.rollends.simuflow.blocks.python.Symbol;
@@ -13,6 +14,8 @@ public abstract class StatefulBlock extends BasicBlock {
     protected final Symbol initialStateVariable;
     protected final Symbol stateVariable;
     protected final Symbol dStateVariable;
+    protected final Symbol pyGetStateForBlock = new Symbol(String.format("getStateForBlock%d", hashCode()));
+    protected final Symbol pySetStateForBlock = new Symbol(String.format("setStateForBlock%d", hashCode()));
 
     public StatefulBlock(List<BasicSignal> inputs, List<BasicSignal> outputs) {
         super(inputs, outputs);
@@ -21,6 +24,18 @@ public abstract class StatefulBlock extends BasicBlock {
         stateVariable = new Symbol(String.format("x_%d", hashCode()));
         dStateVariable = new Symbol(String.format("dx_%d", hashCode()));
     }
+
+    public abstract boolean hasFeedforward();
+
+    public Symbol getPyGetStateForBlock() {
+        return pyGetStateForBlock;
+    }
+
+    public Symbol getPySetStateForBlock() {
+        return pySetStateForBlock;
+    }
+
+    public abstract int getStateSize();
 
     public Symbol getStateVariable() {
         return stateVariable;
@@ -34,10 +49,12 @@ public abstract class StatefulBlock extends BasicBlock {
         return initialStateVariable;
     }
 
+    public abstract AbstractPythonOperationBuilder getBuilder();
+
     @Override
     public void accept(IBlockVisitor visitor) {
         visitor.visitStatefulBlock(this);
     }
 
-    public abstract Sequence makeIntegrationStep();
+    public abstract Sequence integrationCode();
 }

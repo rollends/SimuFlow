@@ -32,6 +32,14 @@ public class Sequence extends AbstractSyntaxTree {
         return new Sequence(List.of(tree));
     }
 
+    public static Sequence from(AbstractSyntaxTree tree, AbstractSyntaxTree ... others) {
+        Sequence seq = Sequence.from(tree);
+        for (AbstractSyntaxTree child : others) {
+            seq = Sequence.concat(seq, Sequence.from(child));
+        }
+        return seq;
+    }
+
     @Override
     public void accept(IAbstractSyntaxTreeVisitor visitor) {
         visitor.visitSequence(this);

@@ -17,18 +17,18 @@ public class StepFunction extends SourceBlock {
     }
 
     @Override
-    public Sequence makePreparationStep() {
+    public Sequence initializationCode() {
         return new Sequence(List.of());
     }
 
     @Override
-    public Sequence makeOutputStep() {
+    public Sequence outputCode() {
         // Output Variable
         Symbol y = outputs.get(0).makeSymbol();
         Symbol t = time.makeSymbol();
 
         // Generate output value.
-        Statement setOutput = new AssignStatement(y, new Expression(String.format("%g*np.ones(1) if %s > %g else np.zeros(1)", amplitude.doubleValue(), t, startTime)));
+        Statement setOutput = new AssignStatement(y, new PlainExpression(String.format("(%g*np.ones(1) if %s >= %g else np.zeros(1))", amplitude.doubleValue(), t, startTime)));
 
         return new Sequence(List.of(setOutput));
     }

@@ -1,10 +1,7 @@
 package ca.rollends.simuflow.blocks;
 
 import ca.rollends.simuflow.blocks.codegen.IBlockVisitor;
-import ca.rollends.simuflow.blocks.python.AssignStatement;
-import ca.rollends.simuflow.blocks.python.Expression;
-import ca.rollends.simuflow.blocks.python.Sequence;
-import ca.rollends.simuflow.blocks.python.Statement;
+import ca.rollends.simuflow.blocks.python.*;
 
 import java.util.List;
 
@@ -19,14 +16,14 @@ public class Wire extends BasicBlock {
     }
 
     @Override
-    public Sequence makePreparationStep() {
-        return new Sequence(List.of());
+    public Sequence initializationCode() {
+        return Sequence.empty();
     }
 
     @Override
-    public Sequence makeOutputStep() {
+    public Sequence outputCode() {
         BasicSignal in = getInputs().get(0);
         BasicSignal out = getOutputs().get(0);
-        return new Sequence(List.of(new AssignStatement(out.makeSymbol(), new Expression(in.makeSymbol().toString()))));
+        return Sequence.from(new AssignStatement(out.makeSymbol(), new PlainExpression(in.makeSymbol().toString())));
     }
 }

@@ -56,6 +56,43 @@ public class IntegrationStepCodeBuilder implements IBlockVisitor {
     }
 
     @Override
+    public void visitProbe(Probe w) {
+        visitWire(w);
+    }
+
+    @Override
+    public void visitNode(Node w) {
+        visitedSet.add(w);
+
+        // Should be only one input
+        BasicSignal signal = w.getInputs().get(0);
+
+        // Figure out source block
+        BasicBlock source = signal.getSource();
+
+        // Traverse
+        if(!visitedSet.contains(source)) {
+            source.accept(this);
+        }
+    }
+
+    @Override
+    public void visitSum(Sum s) {
+        visitedSet.add(s);
+
+        // More than one input
+        for(BasicSignal signal : s.getInputs()) {
+            // Figure out source block
+            BasicBlock source = signal.getSource();
+
+            // Traverse
+            if (!visitedSet.contains(source)) {
+                source.accept(this);
+            }
+        }
+    }
+
+    @Override
     public void visitStatefulBlock(StatefulBlock s) {
         visitedSet.add(s);
 
@@ -63,7 +100,7 @@ public class IntegrationStepCodeBuilder implements IBlockVisitor {
         BasicSignal signal = s.getInputs().get(0);
 
         // Generate Source Code
-        Sequence code = s.makeIntegrationStep();
+        Sequence code = s.integrationCode();
         outputCode = Sequence.concat(outputCode, code);
 
         // Figure out source block

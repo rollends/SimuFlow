@@ -15,9 +15,9 @@ public class SimuflowProgramBuilder  {
         this.diagram = diagram;
 
         imports = new Sequence(List.of(
-                    new ImportStatement(new Expression("numpy as np")),
-                    new ImportStatement(new Expression("scipy as sp")),
-                    new ImportStatement(new Expression("scipy.integrate"))
+                    new ImportStatement(new PlainExpression("numpy as np")),
+                    new ImportStatement(new PlainExpression("scipy as sp")),
+                    new ImportStatement(new PlainExpression("scipy.integrate"))
         ));
     }
 
@@ -27,7 +27,7 @@ public class SimuflowProgramBuilder  {
 
         // Preparation Logic is just statements that are run before doing anything else
         for(BasicBlock b : diagram.getBlocks()) {
-            prog = Program.newProgram(prog, b.makePreparationStep());
+            prog = Program.newProgram(prog, b.initializationCode());
         }
 
         // Now we create the much needed simulation step function.
@@ -50,11 +50,11 @@ public class SimuflowProgramBuilder  {
         // Set initial condition
         List<Symbol> initialStates = collectBlockStates.getInitialStates();
         String cols = initialStates.stream().map((l) -> l.toString()).reduce((a,b) -> a + "," + b).get();
-        Sequence assignInitialCondition = Sequence.from(new AssignStatement(initialCondition, new Expression(String.format("np.squeeze(np.asarray(np.vstack( (%s) )), axis=0)", cols))));
+        Sequence assignInitialCondition = Sequence.from(new AssignStatement(initialCondition, new PlainExpression(String.format("np.squeeze(np.asarray(np.vstack( (%s) )), axis=1)", cols))));
 
         // Run solver to time Tmax = 10
         double Tmax = 10.;
-        Statement solve = new AssignStatement(solution, new Expression(String.format("sp.integrate.solve_ivp(flow, [0, %g], %s)", Tmax, initialCondition)));
+        Statement solve = new AssignStatement(solution, new PlainExpression(String.format("sp.integrate.solve_ivp(flow, [0, %g], %s)", Tmax, initialCondition)));
 
         return Sequence.concat(assignInitialCondition, Sequence.from(solve));
     }
@@ -63,20 +63,18 @@ public class SimuflowProgramBuilder  {
         Symbol x = new Symbol("x");
         Symbol dx = new Symbol("dx");
 
+        // Declare dx in terms of x (should be same size!)
+        Sequence makeDX = Sequence.from(new AssignStatement(dx, new PlainExpression("np.copy(x)")));
+
         // Collect all the states and their differentials in-order.
         CollectBlockStates collectBlockStates = new CollectBlockStates();
         diagram.accept(collectBlockStates);
 
         // Create assignment of state variables
-        List<Symbol> states = collectBlockStates.getStates();
-        List<AbstractSyntaxTree> assignStateVars = new LinkedList<>();
-        for(int i = 0; i < states.size(); i++) {
-            Expression index = new Expression(String.format("%s[%d]", x, i));
-            assignStateVars.add(new AssignStatement(states.get(i), index));
-        }
-        Sequence assignStates = new Sequence(assignStateVars);
+        Sequence declareOps = collectBlockStates.getStateOperations();
+        Sequence readState = collectBlockStates.getStateReadingOperations();
 
-        // First need to compute the output logic.
+        // Need to compute the output logic.
         BlockOutputCodeBuilder outputCodeBuilder = new BlockOutputCodeBuilder();
         diagram.accept(outputCodeBuilder);
         Sequence blockOutputCode = outputCodeBuilder.getResult();
@@ -87,15 +85,13 @@ public class SimuflowProgramBuilder  {
         Sequence integration = integrationStepCodeBuilder.getResult();
 
         // And output assignment of differentials
-        List<Symbol> differentials = collectBlockStates.getDifferentials();
-        List<AbstractSyntaxTree> assignDifferentials = new LinkedList<>();
+        Sequence assignDX = collectBlockStates.getDifferentialWritingOperations();
 
-        String cols = differentials.stream().map((l) -> "[" + l.toString() + "]").reduce((a,b) -> a + "," + b).get();
-        assignDifferentials.add(new AssignStatement(dx, new Expression(String.format("np.squeeze(np.asarray(np.bmat([%s])))", cols))));
-        Sequence assignDX = new Sequence(assignDifferentials);
+        // Return result
+        Sequence retur = Sequence.from(new ReturnStatement(new PlainExpression(dx.toString())));
 
         // Final Sequence of Code
-        Sequence implementation = Sequence.concat(assignStates, blockOutputCode, integration, assignDX);
+        Sequence implementation = Sequence.concat(makeDX, declareOps, readState, blockOutputCode, integration, assignDX, retur);
 
         return new Function(new Symbol("flow"), List.of(BasicBlock.time.makeSymbol(), x), List.of(dx), new Scope(implementation));
     }

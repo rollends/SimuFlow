@@ -46,14 +46,11 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
     private void drainStack() {
         // Should have the stack full now, so generate output code.
-        Sequence operations = new Sequence(List.of());
         while(!operationStack.isEmpty()) {
             BasicBlock block = operationStack.poll();
-            operations = new Sequence(Stream.concat(operations.getChildren().stream(), block.makeOutputStep().getChildren().stream()).collect(Collectors.toUnmodifiableList()));
-        }
 
-        // Store resulting generated code.
-        outputCode = new Sequence(Stream.concat(outputCode.getChildren().stream(), operations.getChildren().stream()).collect(Collectors.toUnmodifiableList()));
+            outputCode = Sequence.concat(outputCode, block.outputCode());
+        }
     }
 
     @Override
@@ -88,6 +85,59 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
     }
 
     @Override
+    public void visitProbe(Probe w) {
+        visitWire(w);
+    }
+
+    @Override
+    public void visitNode(Node w) {
+        visitedSet.add(w);
+
+        // Should be only one input
+        BasicSignal signal = w.getInputs().get(0);
+
+        // Push this block on the stack
+        operationStack.push(w);
+
+        // Figure out source block
+        BasicBlock source = signal.getSource();
+
+        // Traverse
+        if(!visitedSet.contains(source)) {
+            source.accept(this);
+        } else {
+            drainStack();
+        }
+    }
+
+    @Override
+    public void visitSum(Sum s) {
+        visitedSet.add(s);
+
+        // Clean stack
+        Deque<BasicBlock> oldStack = new LinkedList<>();
+        oldStack.addAll(operationStack);
+        operationStack.clear();
+
+        // More than one input
+        for(BasicSignal signal : s.getInputs()) {
+            // Figure out source block
+            BasicBlock source = signal.getSource();
+
+            // Traverse
+            if (!visitedSet.contains(source)) {
+                source.accept(this);
+            }
+
+            drainStack();
+        }
+
+        operationStack.addAll(oldStack);
+        operationStack.push(s);
+        drainStack();
+    }
+
+    @Override
     public void visitStatefulBlock(StatefulBlock s) {
         visitedSet.add(s);
 
@@ -96,6 +146,12 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
         // Push this block on the stack
         operationStack.push(s);
+
+
+        if(!s.hasFeedforward()) {
+            // With no feedforward, we can compute the output NOW. so let us do it now.
+            drainStack();
+        }
 
         // Figure out source block
         BasicBlock source = signal.getSource();
@@ -108,3 +164,4 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
         }
     }
 }
+
