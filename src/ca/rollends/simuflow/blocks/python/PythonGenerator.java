@@ -233,6 +233,29 @@ public class PythonGenerator implements IAbstractSyntaxTreeVisitor {
     }
 
     @Override
+    public void visitFunctionCallStatement(FunctionCallStatement exp) {
+        StringBuilder str = new StringBuilder();
+
+        str.append(exp.getFunctionName());
+        str.append('(');
+
+        List<Expression> children = exp.getArguments();
+
+        for(int i = 0; i < children.size(); i++) {
+            children.get(i).accept(this);
+            if (i > 0) {
+                str.append(',');
+            }
+            str.append(codeStack.poll());
+        }
+
+        str.append(')');
+        str.append('\n');
+
+        codeStack.push(str.toString());
+    }
+
+    @Override
     public void visitTupleExpression(TupleExpression exp) {
         StringBuilder str = new StringBuilder();
         str.append('(');

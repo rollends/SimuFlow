@@ -14,8 +14,6 @@ public abstract class StatefulBlock extends BasicBlock {
     protected final Symbol initialStateVariable;
     protected final Symbol stateVariable;
     protected final Symbol dStateVariable;
-    protected final Symbol pyGetStateForBlock = new Symbol(String.format("getStateForBlock%d", hashCode()));
-    protected final Symbol pySetStateForBlock = new Symbol(String.format("setStateForBlock%d", hashCode()));
 
     public StatefulBlock(List<BasicSignal> inputs, List<BasicSignal> outputs) {
         super(inputs, outputs);
@@ -26,14 +24,6 @@ public abstract class StatefulBlock extends BasicBlock {
     }
 
     public abstract boolean hasFeedforward();
-
-    public Symbol getPyGetStateForBlock() {
-        return pyGetStateForBlock;
-    }
-
-    public Symbol getPySetStateForBlock() {
-        return pySetStateForBlock;
-    }
 
     public abstract int getStateSize();
 

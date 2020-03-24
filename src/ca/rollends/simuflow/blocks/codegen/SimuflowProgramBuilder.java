@@ -1,12 +1,13 @@
 package ca.rollends.simuflow.blocks.codegen;
 
 import ca.rollends.simuflow.blocks.*;
+import ca.rollends.simuflow.blocks.codegen.exceptions.SimuflowCompilationExceptionList;
 import ca.rollends.simuflow.blocks.python.*;
 
 import java.util.LinkedList;
 import java.util.List;
 
-public class SimuflowProgramBuilder  {
+public class SimuflowProgramBuilder extends AbstractPythonOperationBuilder {
 
     private final BlockDiagram diagram;
     private final Sequence imports;
@@ -21,7 +22,7 @@ public class SimuflowProgramBuilder  {
         ));
     }
 
-    public Program build() {
+    public Program build() throws SimuflowCompilationExceptionList {
         Program prog = Program.newProgram();
         prog = Program.newProgram(prog, imports);
 
@@ -59,7 +60,7 @@ public class SimuflowProgramBuilder  {
         return Sequence.concat(assignInitialCondition, Sequence.from(solve));
     }
 
-    private Function makeGlobalStepFunction() {
+    private Function makeGlobalStepFunction() throws SimuflowCompilationExceptionList {
         Symbol x = new Symbol("x");
         Symbol dx = new Symbol("dx");
 

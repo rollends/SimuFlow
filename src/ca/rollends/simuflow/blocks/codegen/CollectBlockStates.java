@@ -9,9 +9,6 @@ import java.util.*;
 public class CollectBlockStates implements IBlockVisitor {
     private Set<BasicBlock> visitedSet;
     private List<Symbol> initialStates;
-    private List<Symbol> states;
-    private List<Symbol> differentials;
-    private List<Integer> sizes;
     private Sequence stateOperations;
     private Sequence stateReadingOperations;
     private Sequence differentialWritingOperations;
@@ -19,10 +16,7 @@ public class CollectBlockStates implements IBlockVisitor {
 
     public CollectBlockStates() {
         this.visitedSet = new HashSet<>();
-        this.states = new LinkedList<>();
-        this.differentials = new LinkedList<>();
         this.initialStates = new LinkedList<>();
-        this.sizes = new ArrayList<>();
         currentIndex = 0;
         stateOperations = Sequence.empty();
         stateReadingOperations = Sequence.empty();
@@ -41,20 +35,8 @@ public class CollectBlockStates implements IBlockVisitor {
         return stateReadingOperations;
     }
 
-    public List<Symbol> getDifferentials() {
-        return differentials;
-    }
-
-    public List<Symbol> getStates() {
-        return states;
-    }
-
     public List<Symbol> getInitialStates() {
         return initialStates;
-    }
-
-    public List<Integer> getStateSizes() {
-        return sizes;
     }
 
     @Override
@@ -138,19 +120,20 @@ public class CollectBlockStates implements IBlockVisitor {
 
         // Add states.
         initialStates.add(s.getInitialStateVariable());
-        states.add(s.getStateVariable());
-        differentials.add(s.getDifferentialVariable());
-        sizes.add(s.getStateSize());
 
-        stateReadingOperations = Sequence.concat(stateReadingOperations, s.getBuilder().stepSetupCode(currentIndex));
-        currentIndex += s.getStateSize();
+        stateReadingOperations = Sequence.concat(stateReadingOperations, s.getBuilder().stepSetupCode());
+        Statement writeToState = new FunctionCallStatement(s.getBuilder().get("getState"), List.of(new PlainExpression("x"), new PlainExpression(s.getStateVariable().toString()), new PlainExpression(Integer.toString(currentIndex))));
+        stateReadingOperations = Sequence.concat(stateReadingOperations, Sequence.from(writeToState));
 
         // Add Operation to Write differential state for this block into the differential output.
-        Statement writeToDifferential = new PlainStatement(String.format("%s(dx,%s)", s.getPySetStateForBlock(), s.getDifferentialVariable()));
+        Statement writeToDifferential =
+            new FunctionCallStatement(s.getBuilder().get("setState"), List.of(new PlainExpression("dx"), new PlainExpression(s.getDifferentialVariable().toString()), new PlainExpression(Integer.toString(currentIndex))));
         differentialWritingOperations = Sequence.concat(differentialWritingOperations, Sequence.from(writeToDifferential));
 
         // Figure out source block
         BasicBlock source = signal.getSource();
+
+        currentIndex += s.getStateSize();
 
         // Traverse
         if(!visitedSet.contains(source)) {

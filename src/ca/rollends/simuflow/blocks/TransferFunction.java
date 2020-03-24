@@ -18,7 +18,7 @@ public class TransferFunction extends StatefulBlock {
     private final Symbol C = new Symbol();
     private final Symbol D = new Symbol();
 
-    private final TransferFunctionOperationBuilder operationBuilder = new TransferFunctionOperationBuilder();
+    private final TransferFunctionOperationBuilder operationBuilder;
 
     private final boolean isStrictlyProper;
 
@@ -50,6 +50,7 @@ public class TransferFunction extends StatefulBlock {
 
         this.numerator = numeratorStream.collect(Collectors.toUnmodifiableList());
         this.denominator = denominatorStream.collect(Collectors.toUnmodifiableList());
+        operationBuilder = new TransferFunctionOperationBuilder();
     }
 
     public class TransferFunctionOperationBuilder extends AbstractPythonOperationBuilder {
@@ -59,6 +60,35 @@ public class TransferFunction extends StatefulBlock {
         Symbol numpyVstack = new Symbol("np.vstack");
         Symbol numpyEye = new Symbol("np.eye");
         Symbol numpyReshape = new Symbol("np.reshape");
+
+        Symbol pyGetStateForBlock = new Symbol(String.format("getStateForBlock%d", hashCode()));
+        Symbol pySetStateForBlock = new Symbol(String.format("setStateForBlock%d", hashCode()));
+
+        public TransferFunctionOperationBuilder() {
+            // Useful Variable Names
+            Symbol x = new Symbol("x");
+            Symbol y = new Symbol("y");
+            Symbol index = new Symbol("i");
+
+            // "GetState" operation.
+            Sequence extractState = Sequence.empty();
+            for (int i = 0; i < getStateSize(); i++) {
+                Statement setOneState = new AssignStatement(new Symbol(String.format("y[%d]", i)), new PlainExpression(String.format("x[i+(%d)]", i)));
+                extractState = Sequence.concat(extractState, Sequence.from(setOneState));
+            }
+            Function getStateFor = new Function(pyGetStateForBlock, List.of(x,y,index), List.of(), new Scope(extractState));
+            put("getState", getStateFor);
+
+
+            // "SetState" operation
+            Sequence setStates = Sequence.empty();
+            for (int i = 0; i < getStateSize(); i++) {
+                Statement setOneState = new AssignStatement(new Symbol(String.format("x[i+(%d)]", i)), new PlainExpression(String.format("y[%d]", i)));
+                setStates = Sequence.concat(setStates, Sequence.from(setOneState));
+            }
+            Function setStateFor = new Function(pySetStateForBlock, List.of(x,y,index), List.of(), new Scope(setStates));
+            put("setState", setStateFor);
+        }
 
         public void inputOutputConstraint(Map<Symbol, Expression> Matrix, Map<Symbol, Expression> OutputVector) {
             Symbol u = inputs.get(0).makeSymbol();
@@ -70,6 +100,7 @@ public class TransferFunction extends StatefulBlock {
             OutputVector.put(y, Multiply(Variable(C), Variable(x)));
         }
 
+        @Override
         public Sequence outputCode() {
             Symbol y = outputs.get(0).makeSymbol();
             Symbol x = stateVariable;
@@ -84,6 +115,7 @@ public class TransferFunction extends StatefulBlock {
             return Sequence.from(setY);
         }
 
+        @Override
         public Sequence integrationCode() {
             int N = denominator.size() - 1;
 
@@ -96,23 +128,11 @@ public class TransferFunction extends StatefulBlock {
                 Add(
                     Multiply(
                         Variable(A),
-                        Call(
-                            numpyReshape,
-                            List.of(
-                                Variable(x),
-                                Tuple(LiteralInteger(N), LiteralInteger(1))
-                            )
-                        )
+                        Variable(x)
                     ),
                     Multiply(
                         Variable(B),
-                        Call(
-                            numpyReshape,
-                            List.of(
-                                Variable(u),
-                                Tuple(LiteralInteger(1), LiteralInteger(1))
-                            )
-                        )
+                        Variable(u)
                     )
                 )
             );
@@ -120,30 +140,16 @@ public class TransferFunction extends StatefulBlock {
             return Sequence.from(setDX);
         }
 
-        public Sequence stepSetupCode(Integer stateIndex) {
-            // Add Operation to get State.
-            Sequence extractState = Sequence.empty();
-            for (int i = 0; i < getStateSize(); i++) {
-                Statement setOneState = new AssignStatement(new Symbol(String.format("y[%d]", i)), new PlainExpression(String.format("x[%d]", stateIndex + i)));
-                extractState = Sequence.concat(extractState, Sequence.from(setOneState));
-            }
-            Function getStateFor = new Function(getPyGetStateForBlock(), List.of(new Symbol("x"), new Symbol("y")), List.of(), new Scope(extractState));
-
-            // Add Operation to set Differential State
-            Sequence setStates = Sequence.empty();
-            for (int i = 0; i < getStateSize(); i++) {
-                Statement setOneState = new AssignStatement(new Symbol(String.format("x[%d]", stateIndex + i)), new PlainExpression(String.format("y[%d]", i)));
-                setStates = Sequence.concat(setStates, Sequence.from(setOneState));
-            }
-            Function setStateFor = new Function(getPySetStateForBlock(), List.of(new Symbol("x"), new Symbol("y")), List.of(), new Scope(setStates));
-
+        @Override
+        public Sequence stepSetupCode() {
             // Add Operation to Read state for this block from entire state vector.
             Statement declareStateVar = new AssignStatement(getStateVariable(), Call(numpyZero, List.of(Tuple(LiteralInteger(getStateSize()), LiteralInteger(1)))));
-            Statement writeToState = new PlainStatement(String.format("%s(x,%s)", getPyGetStateForBlock(), getStateVariable()));
 
-            return Sequence.from(getStateFor, setStateFor, declareStateVar, writeToState);
+            // Get function implementations
+            return Sequence.from(declareStateVar);
         }
 
+        @Override
         public Sequence preparationCode() {
             int N = denominator.size() - 1;
 
@@ -210,7 +216,7 @@ public class TransferFunction extends StatefulBlock {
                 )
             );
 
-            return Sequence.from(assignX0, assignD, assignC, assignT1, assignA, assignB);
+            return Sequence.from(getImplementation(), assignX0, assignD, assignC, assignT1, assignA, assignB);
         }
     }
 

@@ -1,31 +1,34 @@
 package ca.rollends.simuflow.blocks.codegen;
 
 import ca.rollends.simuflow.blocks.*;
+import ca.rollends.simuflow.blocks.codegen.exceptions.AlgebraicLoopDetectedException;
+import ca.rollends.simuflow.blocks.codegen.exceptions.SimuflowCompilationExceptionList;
 import ca.rollends.simuflow.blocks.python.Sequence;
-import ca.rollends.simuflow.blocks.python.Statement;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class BlockOutputCodeBuilder implements IBlockVisitor {
     private Sequence outputCode;
-    private Set<BasicBlock> visitedSet;
+    private Set<BasicBlock> closedSet = new HashSet<>();
+    private Set<BasicBlock> openSet = new HashSet<>();
     private Deque<BasicBlock> operationStack;
+    private SimuflowCompilationExceptionList errors = SimuflowCompilationExceptionList.empty();
 
     public BlockOutputCodeBuilder() {
         operationStack = new LinkedList<>();
-        visitedSet = new HashSet<>();
         outputCode = new Sequence(List.of());
     }
 
-    public Sequence getResult() {
+    public Sequence getResult() throws SimuflowCompilationExceptionList {
+        if (!errors.isEmpty()) {
+            throw errors;
+        }
         return outputCode;
     }
 
     @Override
     public void visitSinkBlock(SinkBlock s) {
-        visitedSet.add(s);
+        openSet.add(s);
 
         // Should be only one input
         BasicSignal signal = s.getInputs().get(0);
@@ -36,8 +39,14 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
         // Figure out source block
         BasicBlock source = signal.getSource();
 
+        if (openSet.contains(source)) {
+            errors = errors.concat(SimuflowCompilationExceptionList.from(new AlgebraicLoopDetectedException(source)));
+            drainStack();
+            return;
+        }
+
         // Traverse
-        if(!visitedSet.contains(source)) {
+        if(!closedSet.contains(source)) {
             source.accept(this);
         } else {
             drainStack();
@@ -50,12 +59,15 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
             BasicBlock block = operationStack.poll();
 
             outputCode = Sequence.concat(outputCode, block.outputCode());
+
+            openSet.remove(block);
+            closedSet.add(block);
         }
     }
 
     @Override
     public void visitSourceBlock(SourceBlock s) {
-        visitedSet.add(s);
+        openSet.add(s);
 
         // Push this block on the stack
         operationStack.push(s);
@@ -65,7 +77,7 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
     @Override
     public void visitWire(Wire w) {
-        visitedSet.add(w);
+        openSet.add(w);
 
         // Should be only one input
         BasicSignal signal = w.getInputs().get(0);
@@ -76,8 +88,14 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
         // Figure out source block
         BasicBlock source = signal.getSource();
 
+        if (openSet.contains(source)) {
+            errors = errors.concat(SimuflowCompilationExceptionList.from(new AlgebraicLoopDetectedException(source)));
+            drainStack();
+            return;
+        }
+
         // Traverse
-        if(!visitedSet.contains(source)) {
+        if(!closedSet.contains(source)) {
             source.accept(this);
         } else {
             drainStack();
@@ -91,7 +109,7 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
     @Override
     public void visitNode(Node w) {
-        visitedSet.add(w);
+        openSet.add(w);
 
         // Should be only one input
         BasicSignal signal = w.getInputs().get(0);
@@ -102,8 +120,14 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
         // Figure out source block
         BasicBlock source = signal.getSource();
 
+        if (openSet.contains(source)) {
+            errors = errors.concat(SimuflowCompilationExceptionList.from(new AlgebraicLoopDetectedException(source)));
+            drainStack();
+            return;
+        }
+
         // Traverse
-        if(!visitedSet.contains(source)) {
+        if(!closedSet.contains(source)) {
             source.accept(this);
         } else {
             drainStack();
@@ -112,7 +136,7 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
     @Override
     public void visitSum(Sum s) {
-        visitedSet.add(s);
+        openSet.add(s);
 
         // Clean stack
         Deque<BasicBlock> oldStack = new LinkedList<>();
@@ -124,8 +148,14 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
             // Figure out source block
             BasicBlock source = signal.getSource();
 
+            if (openSet.contains(source)) {
+                errors = errors.concat(SimuflowCompilationExceptionList.from(new AlgebraicLoopDetectedException(source)));
+                drainStack();
+                return;
+            }
+
             // Traverse
-            if (!visitedSet.contains(source)) {
+            if (!closedSet.contains(source)) {
                 source.accept(this);
             }
 
@@ -139,7 +169,7 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
 
     @Override
     public void visitStatefulBlock(StatefulBlock s) {
-        visitedSet.add(s);
+        openSet.add(s);
 
         // TODO: Right now assuming stateful block has only one input. Is this right?
         BasicSignal signal = s.getInputs().get(0);
@@ -156,8 +186,14 @@ public class BlockOutputCodeBuilder implements IBlockVisitor {
         // Figure out source block
         BasicBlock source = signal.getSource();
 
+        if (openSet.contains(source)) {
+            errors = errors.concat(SimuflowCompilationExceptionList.from(new AlgebraicLoopDetectedException(source)));
+            drainStack();
+            return;
+        }
+
         // Traverse
-        if(!visitedSet.contains(source)) {
+        if(!closedSet.contains(source)) {
             source.accept(this);
         } else {
             drainStack();

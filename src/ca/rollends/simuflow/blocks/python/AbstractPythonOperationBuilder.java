@@ -23,7 +23,7 @@ public abstract class AbstractPythonOperationBuilder {
         return operationTable.get(name);
     }
 
-    protected void put(String name, Function operation) {
+    public void put(String name, Function operation) {
         operationTable.put(name, operation.getName());
         implementation.add(operation);
     }
@@ -89,7 +89,7 @@ public abstract class AbstractPythonOperationBuilder {
         }
     }
 
-    public Sequence stepSetupCode(Integer stateIndex) {
+    public Sequence stepSetupCode() {
         return Sequence.empty();
     }
 

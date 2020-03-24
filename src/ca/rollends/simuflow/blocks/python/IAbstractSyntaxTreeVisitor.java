@@ -5,6 +5,7 @@ public interface IAbstractSyntaxTreeVisitor {
     void visitReturnStatement(ReturnStatement st);
     void visitImportStatement(ImportStatement st);
     void visitPlainStatement(PlainStatement st);
+    void visitFunctionCallStatement(FunctionCallStatement exp);
     void visitStatement(Statement st);
     void visitPlainExpression(PlainExpression exp);
     void visitBinaryOperatorExpression(BinaryOperatorExpression exp);
