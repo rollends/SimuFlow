@@ -12,6 +12,7 @@ public class CollectBlockStates implements IBlockVisitor {
     private Sequence stateOperations;
     private Sequence stateReadingOperations;
     private Sequence differentialWritingOperations;
+    private Map<Symbol, Integer> stateIndexMap;
     private int currentIndex;
 
     public CollectBlockStates() {
@@ -21,6 +22,7 @@ public class CollectBlockStates implements IBlockVisitor {
         stateOperations = Sequence.empty();
         stateReadingOperations = Sequence.empty();
         differentialWritingOperations = Sequence.empty();
+        stateIndexMap = new HashMap<>();
     }
 
     public Sequence getStateOperations() {
@@ -33,6 +35,10 @@ public class CollectBlockStates implements IBlockVisitor {
 
     public Sequence getStateReadingOperations() {
         return stateReadingOperations;
+    }
+
+    public Map<Symbol, Integer> getStateIndexMap() {
+        return stateIndexMap;
     }
 
     public List<Symbol> getInitialStates() {
@@ -120,6 +126,8 @@ public class CollectBlockStates implements IBlockVisitor {
 
         // Add states.
         initialStates.add(s.getInitialStateVariable());
+
+        stateIndexMap.put(s.getStateVariable(), currentIndex);
 
         stateReadingOperations = Sequence.concat(stateReadingOperations, s.getBuilder().stepSetupCode());
         Statement writeToState = new FunctionCallStatement(s.getBuilder().get("getState"), List.of(new PlainExpression("x"), new PlainExpression(s.getStateVariable().toString()), new PlainExpression(Integer.toString(currentIndex))));

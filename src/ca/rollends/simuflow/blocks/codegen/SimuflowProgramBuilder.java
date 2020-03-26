@@ -24,6 +24,7 @@ public class SimuflowProgramBuilder extends AbstractPythonOperationBuilder {
 
     public Program build() throws SimuflowCompilationExceptionList {
         Program prog = Program.newProgram();
+
         prog = Program.newProgram(prog, imports);
 
         // Preparation Logic is just statements that are run before doing anything else
@@ -46,7 +47,11 @@ public class SimuflowProgramBuilder extends AbstractPythonOperationBuilder {
 
         // Collect all the states and their differentials in-order.
         CollectBlockStates collectBlockStates = new CollectBlockStates();
+        // collect signals
+        CollectSignals collectSignals = new CollectSignals(collectBlockStates);
+
         diagram.accept(collectBlockStates);
+        diagram.accept(collectSignals);
 
         // Set initial condition
         List<Symbol> initialStates = collectBlockStates.getInitialStates();
@@ -57,7 +62,7 @@ public class SimuflowProgramBuilder extends AbstractPythonOperationBuilder {
         double Tmax = 10.;
         Statement solve = new AssignStatement(solution, new PlainExpression(String.format("sp.integrate.solve_ivp(flow, [0, %g], %s)", Tmax, initialCondition)));
 
-        return Sequence.concat(assignInitialCondition, Sequence.from(solve));
+        return Sequence.concat(assignInitialCondition, Sequence.from(solve, collectSignals.getResultCode()));
     }
 
     private Function makeGlobalStepFunction() throws SimuflowCompilationExceptionList {
