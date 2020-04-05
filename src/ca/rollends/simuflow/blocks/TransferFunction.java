@@ -103,14 +103,31 @@ public class TransferFunction extends StatefulBlock {
         @Override
         public Sequence outputCode() {
             Symbol y = outputs.get(0).makeSymbol();
+            Symbol u = inputs.get(0).makeSymbol();
             Symbol x = stateVariable;
 
-            Statement setY = new AssignStatement(y,
-                Multiply(
-                    Variable(C),
-                    Variable(x)
-                )
-            );
+            Statement setY = null;
+            if (hasFeedforward()) {
+                setY = new AssignStatement(y,
+                    Add(
+                        Multiply(
+                            Variable(C),
+                            Variable(x)
+                        ),
+                        Multiply(
+                            Variable(D),
+                            Variable(u)
+                        )
+                    )
+                );
+            } else {
+                setY = new AssignStatement(y,
+                    Multiply(
+                        Variable(C),
+                        Variable(x)
+                    )
+                );
+            }
 
             return Sequence.from(setY);
         }
